@@ -8,7 +8,9 @@ const jsonProducts = require('./products.json');
 const start = async () => {
   try {
     await connectDB(process.env.MONGO_URI);
+    // Product koleksiyonun içerisindeki verileri sil.
     await Product.deleteMany();
+    // Product koleksiyonun içerisine jsonProduts içeirisindeki verileri ekle.
     await Product.create(jsonProducts);
 
     console.log('Success!!!!');
