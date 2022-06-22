@@ -1,21 +1,24 @@
 const Product = require('../models/product');
 
 const getAllProductsStatic = async (req, res) => {
+  const search = 'ab';
   const products = await Product.find({
-    name: 'vase table',
+    name: { $regex: search, $options: 'i' },
   });
   res.status(200).json({ products, nbHits: products.length });
 };
 
 const getAllProducts = async (req, res) => {
-  const { featured, company } = req.query;
+  const { featured, company, name } = req.query;
   const queryObject = {};
 
   // koleksiyonumuzun içerdiği aynı özelliklere sahip queryleri aldıktan sonra queryObject objesine aktarıyoruz. Bu sayede queryler boş gelirse queryObject boş bir obje göndereceği için find koleksiyon içindeki bütün verileri çekecek.
-  if (featured && company) {
-    queryObject.featured = featured;
-    queryObject.company = company;
-  }
+
+  featured && (queryObject.featured = featured);
+  company && (queryObject.company = company);
+
+  // $regex ile daha hızlı bir şekilde arama yapabiliriz. 'i' büyük küçük harf duyarlılığı.
+  name && (queryObject.name = { $regex: name, $options: 'i' });
 
   const products = await Product.find(queryObject);
 
