@@ -1,12 +1,14 @@
 const Product = require('../models/product');
 
 const getAllProductsStatic = async (req, res) => {
-  const products = await Product.find({}).sort('name').select('name price');
+  const products = await Product.find({ price: { $gt: 30 } })
+    .sort('price')
+    .select('name price');
   res.status(200).json({ products, nbHits: products.length });
 };
 
 const getAllProducts = async (req, res) => {
-  const { featured, company, name, sort, fields } = req.query;
+  const { featured, company, name, sort, fields, numericFilters } = req.query;
   const queryObject = {};
 
   // koleksiyonumuzun içerdiği aynı özelliklere sahip queryleri aldıktan sonra queryObject objesine aktarıyoruz. Bu sayede queryler boş gelirse queryObject boş bir obje göndereceği için find koleksiyon içindeki bütün verileri çekecek.
@@ -17,6 +19,35 @@ const getAllProducts = async (req, res) => {
   // $regex ile daha hızlı bir şekilde arama yapabiliriz. 'i' büyük küçük harf duyarlılığı.
   name && (queryObject.name = { $regex: name, $options: 'i' });
 
+  if (numericFilters) {
+    const operatorMap = {
+      '>': '$gt',
+      '>=': '$gte',
+      '=': '$eq',
+      '<': '$lt',
+      '<=': '$lte',
+    };
+
+    const regEx = /\b(<|>|>=|=|<|<=)\b/g;
+    let filters = numericFilters.replace(
+      regEx,
+      match => `-${operatorMap[match]}-`
+    ); // price>40,rating>=40 ---(replace)--> price-$gt-40,rating-$gte-40
+    console.log(filters);
+
+    const options = ['price', 'rating'];
+
+    filters = filters.split(',').forEach(item => {
+      const [field, operator, value] = item.split('-');
+      // field=price, operator=$gt, value=40
+
+      if (options.includes(field)) {
+        queryObject[field] = { [operator]: Number(value) };
+        // queryObject.price:{$gt: 40}, queryObject.rating: {$gte: 40}
+      }
+    });
+  }
+  console.log(queryObject);
   // Arama sonucunu result değişkenine atıyoruz.
   let result = Product.find(queryObject);
 
@@ -31,7 +62,7 @@ const getAllProducts = async (req, res) => {
     result = result.sort('createdAt');
   }
 
-  // select metodu sadece istediğimiz alanları göstermemizi sağlar.
+  // select metodu sadece istenilen alanları göndermemizi sağlar.
   if (fields) {
     const fieldsList = fields.split(',').join(' ');
     result = result.select(fieldsList);
